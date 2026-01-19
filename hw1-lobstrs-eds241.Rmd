@@ -31,7 +31,7 @@ knitr::opts_chunk$set(eval=FALSE, warning = FALSE, message = FALSE )
 -  Your knitted presentation should meet the quality you'd submit to research colleagues or feel confident sharing publicly. Refer to the rubric for details about presentation standards.
 
 
-**Assignment submission (YOUR NAME):** ______________________________________
+**Assignment submission:** __Henry Oliver______
 
 
 ----------------------------------------------------------------------
@@ -88,7 +88,10 @@ Let’s break it down step by step and see what the data reveals! 📊
 ```{r}
 # HINT: check for coding of missing values (`na = "-99999"`)
 
-rawdata <- 
+# Read in data, define -99999 as na
+rawdata <- read_csv(here("data/spiny_abundance_sb_18.csv"), na = "-99999") %>% 
+    clean_names() # Make columns names lower_case
+    
 
 ```
 
@@ -98,7 +101,12 @@ rawdata <-
 
 ```{r}
 
-tidydata <- 
+tidydata <- rawdata %>% 
+    mutate(reef = factor(site, # Create new column called reef. Make it a factor based on site
+                         levels =c("AQUE", "CARP", "MOHK", "IVEE", "NAPL"), #List values of site in order of new factor
+                         # Create labels for new column in the same order as above
+                         labels = c("Arroyo Quemado", "Carpenteria", "Mohawk", "Isla Vista",  "Naples")))
+
     
 ```
 
@@ -117,7 +125,24 @@ Create new `df` named `spiny_counts`
 
 #HINT(e): Use `case_when()` to create the 3 new variable columns
 
-spiny_counts <- 
+spiny_counts <- tidydata %>% 
+    group_by(site, year, transect) %>% # Group data by site, year and transect
+    summarize(
+        counts = n(), # Create new column for counts of lobsters from new groups
+        mean_size = mean(size_mm, na.rm = TRUE),
+                         .groups = "drop") %>% # Create a new column for mean size, ungroup
+    mutate(
+    mpa = case_when( # Create mpa column
+      site %in% c("NAPL", "IVEE") ~ "MPA", # label 'MPA' when site is NAPL or IVEE
+      site %in% c("AQUE", "CARP", "MOHK") ~ "non_MPA"# Label 'non_MPA' when site is AQUE, CARP, or MOHK
+    ),
+    treat = case_when(
+      site %in% c("NAPL", "IVEE") ~ 1,
+      site %in% c("AQUE", "CARP", "MOHK") ~ 0
+    )
+  )
+    
+
 
 ```
 
@@ -151,8 +176,26 @@ Create a plot of lobster **size** :
 ```{r}
 # plot 1: ....
 
-spiny_counts %>% 
-ggplot()
+plot1 <- spiny_counts %>% 
+ggplot(aes(x = counts)) + # display counts
+    geom_histogram() +
+    facet_wrap(~site) # One plot for each site
+
+plot2 <- spiny_counts %>% 
+ggplot(aes(x = counts)) + # display counts
+    geom_histogram() +
+    facet_wrap(~mpa) # One plot for each site
+
+plot3 <- spiny_counts %>% 
+ggplot(aes(x = counts)) + # display counts
+    geom_histogram() +
+    facet_wrap(~year) # One plot for each site
+
+
+plot4 <- spiny_counts %>% 
+ggplot(aes(x = mean_size)) + # display counts
+    geom_histogram() +
+    facet_wrap(~mpa) # One plot for each site
     
 ```
 
