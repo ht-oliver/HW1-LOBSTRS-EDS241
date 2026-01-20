@@ -136,6 +136,7 @@ spiny_counts <- tidydata %>%
       site %in% c("NAPL", "IVEE") ~ "MPA", # label 'MPA' when site is NAPL or IVEE
       site %in% c("AQUE", "CARP", "MOHK") ~ "non_MPA"# Label 'non_MPA' when site is AQUE, CARP, or MOHK
     ),
+    mpa = factor(mpa, levels = c("non_MPA", "MPA")), # Set non_MPA as reference
     treat = case_when(
       site %in% c("NAPL", "IVEE") ~ 1,
       site %in% c("AQUE", "CARP", "MOHK") ~ 0
@@ -175,27 +176,54 @@ Create a plot of lobster **size** :
 
 ```{r}
 # plot 1: ....
-
+# Count distribution by site - histogram
 plot1 <- spiny_counts %>% 
 ggplot(aes(x = counts)) + # display counts
     geom_histogram() +
+    geom_vline(aes(xintercept = mean(counts), linetype = "Mean"), color = "red", size = 1) +
+    labs(title = "Distribution of Lobster Counts by Site",
+         x = "Lobster Counts",
+         y = "Frequency") +
+    scale_linetype_manual(name = "", values = c("Mean" = "dashed")) + # Add mean line
     facet_wrap(~site) # One plot for each site
 
+# Count distribution by MPA status - density plot
 plot2 <- spiny_counts %>% 
-ggplot(aes(x = counts)) + # display counts
-    geom_histogram() +
-    facet_wrap(~mpa) # One plot for each site
+  group_by(mpa) %>%
+  mutate(med = median(counts)) %>%
+  ggplot(aes(x = counts, fill = mpa)) + # grouped by MPA status
+  geom_density(alpha = 0.6) +
+  geom_vline(aes(xintercept = med, color = mpa, linetype = "Median"), size = 1) +
+  labs(title = "Density Distribution of Lobster Counts by MPA Status",
+       x = "Lobster Counts",
+       y = "Density") +
+  scale_fill_manual(values = c("#F26666", "#66F2F2")) + # custom colors
+  scale_color_manual(values = c("#FF2626", "#1FA5C4")) +
+  scale_linetype_manual(name = "", values = c("Median" = "dashed"))
 
+# Count distribution by year - jitter plot
 plot3 <- spiny_counts %>% 
-ggplot(aes(x = counts)) + # display counts
-    geom_histogram() +
-    facet_wrap(~year) # One plot for each site
+    #  We want to color by year since jitter plots can have some confusing overlap. In order to do this year must be a factor
+  ggplot(aes(x = counts, y = year, color = as.factor(year))) + 
+  geom_jitter(size = 2, alpha = 0.7) +
+  geom_vline(aes(xintercept = mean(counts), linetype = "Mean"), size = 1) +
+  labs(title = "Distribution of Lobster Counts Across Years",
+       x = "Lobster Counts",
+       y = "Year") +
+  scale_color_viridis_d(guide = "none") +  # Different color for each year
+  scale_y_continuous(breaks = unique(spiny_counts$year)) +  # Label every year
+  scale_linetype_manual(name = "", values = c("Mean" = "dashed")) # Key for stat
 
-
+# Size distribution by MPA status - Violin plot
 plot4 <- spiny_counts %>% 
-ggplot(aes(x = mean_size)) + # display counts
-    geom_histogram() +
-    facet_wrap(~mpa) # One plot for each site
+  ggplot(aes(x = mpa, y = mean_size, fill = mpa)) + 
+  geom_violin(alpha = 0.6) +
+  stat_summary(fun = mean, aes(shape = "Mean"), geom = "point", size = 3, color = "black") +
+  labs(title = "Distribution of Mean Lobster Size by MPA Status",
+       x = "MPA Status",
+       y = "Mean Size (mm)") +
+  scale_fill_manual(values = c("#F26666", "#66F2F2"), guide = "none") +
+  scale_shape_manual(name = "", values = c("Mean" = 16))
     
 ```
 
@@ -203,6 +231,10 @@ ggplot(aes(x = mean_size)) + # display counts
 
 ```{r}
 # USE: gt_summary::tbl_summary()
+
+spiny_counts %>%
+  select(mpa, counts, mean_size, year) %>%  # Select variables to summarize
+  tbl_summary(by = mpa)  # Group by mpa status
 ```
 
 ------------------------------------------------------------------------
@@ -213,37 +245,41 @@ ggplot(aes(x = mean_size)) + # display counts
 
 **b.** Interpret the intercept & predictor coefficients *in your own words*. Use full sentences and write your interpretation of the regression results to be as clear as possible to a non-academic audience.
 
+The intercept coefficient value indicates the number of lobsters that we can expect at a non-MPA site. Specifically, our model indicates that we should expect to count an average of about 15 lobsters per year at a non-MPA site. The intercept indicates the change in the number of lobsters that we expect to see when we apply our treatment, or in this case, when we search for lobsters in an MPA. In this case, we expect an MPA site to have five more lobsters than a non-MPA site.
+
 ```{r}
 # NOTE: We will not evaluate/interpret model fit in this assignment (e.g., R-square)
 
-m1_ols <- 
+m1_ols <- lm(counts ~ mpa, data = spiny_counts)
 
 summ(m1_ols, model.fit = FALSE) 
 
 ```
 
-**c.** Check the model assumptions using the `check_model` function from the `performance` package
 
 **d.** Explain the results of the 4 diagnostic plots. Why are we getting this result?
 
 ```{r}
 check_model(m1_ols,  check = "qq" )
 ```
+This first plot shows that our count distribution deviates from a normal distribution. This indicates that our counts are least consistent between sites near the lowest and highest bounds of our counts. We're getting this result because our distribution is not necessarily normal - and some sites may have many more large or small lobsters than other sites.
 
 
 ```{r}
 check_model(m1_ols, check = "normality")
 ```
+The second plot shows the density of our residuals compared to that of a normal distribution. Our results have the highest density in the low-residual range, but generally follow the normal curve. This means we have low error. We're probably seeing this because most of our plots have a similar number of lobsters (5-15).
 
 
 ```{r}
 check_model(m1_ols, check = "homogeneity")
 ```
-
+The third plot indicates that our errors are not consistent across our dataset. We're seeing this likely because there is a lot of variation in counts in the middle of our count range (25-50).
 
 ```{r}
 check_model(m1_ols, check = "pp_check")
 ```
+This plot indicates how well our model imitates the patterns found in our actual data. These results show that our model is not able to replicate the peak of our counts that are around 5-15. This is probably because we have so much data in this range, a simple lm can't account for the dispersion.
 
 ------------------------------------------------------------------------
 
