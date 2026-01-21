@@ -397,8 +397,8 @@ information each question asks in your submitted responses.</p></li>
 research colleagues or feel confident sharing publicly. Refer to the
 rubric for details about presentation standards.</p></li>
 </ul>
-<p><strong>Assignment submission (YOUR NAME):</strong>
-______________________________________</p>
+<p><strong>Assignment submission:</strong> <strong>Henry
+Oliver</strong>____</p>
 <hr />
 <pre class="r"><code>library(tidyverse)
 library(here)
@@ -453,6 +453,17 @@ treatment sites (Naples, Isla Vista)? Write a paragraph making a case
 for why this comparison is ceteris paribus or whether selection bias is
 likely (be specific!).</p>
 <hr />
+<p>A perfect counterfactual for our treatment sites would be identical
+in every way to the treatment sites, except for the implementation of an
+MPA. In this experiment, there are many differences between the sites
+other than the presence of the MPA. Geographically, Naples and Isla
+Vista are right next to each other, while the control sites are further
+spread out along the coast. These locations have different habitat
+quality, wave patterns, water temperature, geology, and nutrient
+availability, all of which could have an affect on lobster populations.
+Selection bias is likely present, because these locations were probably
+selected for financial, political, or ease of access reasons, rather
+than being randomly selected.</p>
 </div>
 <div id="step-2-read-wrangle-data" class="section level4">
 <h4>Step 2: Read &amp; wrangle data</h4>
@@ -463,14 +474,20 @@ likely (be specific!).</p>
 the <code>janitor</code> package</p>
 <pre class="r"><code># HINT: check for coding of missing values (`na = &quot;-99999&quot;`)
 
-rawdata &lt;- </code></pre>
+# Read in data, define -99999 as na
+rawdata &lt;- read_csv(here(&quot;data/spiny_abundance_sb_18.csv&quot;), na = &quot;-99999&quot;) %&gt;% 
+    clean_names() # Make columns names lower_case</code></pre>
 <p><strong>c.</strong> Create a new <code>df</code> named
 <code>tidyata</code>. Using the variable <code>site</code> (reef
 location) create a new variable <code>reef</code> as a
 <code>factor</code> and add the following labels in the order listed
 (i.e., re-order the <code>levels</code>):</p>
 <pre><code>&quot;Arroyo Quemado&quot;, &quot;Carpenteria&quot;, &quot;Mohawk&quot;, &quot;Isla Vista&quot;,  &quot;Naples&quot;</code></pre>
-<pre class="r"><code>tidydata &lt;- </code></pre>
+<pre class="r"><code>tidydata &lt;- rawdata %&gt;% 
+    mutate(reef = factor(site, # Create new column called reef. Make it a factor based on site
+                         levels =c(&quot;AQUE&quot;, &quot;CARP&quot;, &quot;MOHK&quot;, &quot;IVEE&quot;, &quot;NAPL&quot;), #List values of site in order of new factor
+                         # Create labels for new column in the same order as above
+                         labels = c(&quot;Arroyo Quemado&quot;, &quot;Carpenteria&quot;, &quot;Mohawk&quot;, &quot;Isla Vista&quot;,  &quot;Naples&quot;)))</code></pre>
 <p>Create new <code>df</code> named <code>spiny_counts</code></p>
 <p><strong>d.</strong> Create a new variable <code>counts</code> to
 allow for an analysis of lobster counts where the unit-level of
@@ -491,7 +508,23 @@ are coded <code>1</code> and non_MPA sites are coded <code>0</code></p>
 
 #HINT(e): Use `case_when()` to create the 3 new variable columns
 
-spiny_counts &lt;- </code></pre>
+spiny_counts &lt;- tidydata %&gt;% 
+    group_by(site, year, transect) %&gt;% # Group data by site, year and transect
+    summarize(
+        counts = sum(count), # Create new column for counts of lobsters from new groups
+        mean_size = mean(size_mm, na.rm = TRUE),
+                         .groups = &quot;drop&quot;) %&gt;% # Create a new column for mean size, ungroup
+    mutate(
+    mpa = case_when( # Create mpa column
+      site %in% c(&quot;NAPL&quot;, &quot;IVEE&quot;) ~ &quot;MPA&quot;, # label &#39;MPA&#39; when site is NAPL or IVEE
+      site %in% c(&quot;AQUE&quot;, &quot;CARP&quot;, &quot;MOHK&quot;) ~ &quot;non_MPA&quot;# Label &#39;non_MPA&#39; when site is AQUE, CARP, or MOHK
+    ),
+    mpa = factor(mpa, levels = c(&quot;non_MPA&quot;, &quot;MPA&quot;)), # Set non_MPA as reference
+    treat = case_when(
+      site %in% c(&quot;NAPL&quot;, &quot;IVEE&quot;) ~ 1,
+      site %in% c(&quot;AQUE&quot;, &quot;CARP&quot;, &quot;MOHK&quot;) ~ 0
+    )
+  )</code></pre>
 <blockquote>
 <p>NOTE: This step is crucial to the analysis. Check with a friend or
 come to TA/instructor office hours to make sure the counts are coded
@@ -537,12 +570,69 @@ plot</a></li>
 <li>You choose the grouping variable(s)!</li>
 </ol>
 <pre class="r"><code># plot 1: ....
+# Count distribution by site - histogram
+plot1 &lt;- spiny_counts %&gt;% 
+ggplot(aes(x = counts)) + # display counts
+    geom_histogram() +
+    geom_vline(aes(xintercept = mean(counts), linetype = &quot;Mean&quot;), color = &quot;red&quot;, size = 1) +
+    labs(title = &quot;Distribution of Lobster Counts by Site&quot;,
+         x = &quot;Lobster Counts&quot;,
+         y = &quot;Frequency&quot;) +
+    scale_linetype_manual(name = &quot;&quot;, values = c(&quot;Mean&quot; = &quot;dashed&quot;)) + # Add mean line
+    facet_wrap(~site) # One plot for each site
 
-spiny_counts %&gt;% 
-ggplot()</code></pre>
+# Count distribution by MPA status - density plot
+plot2 &lt;- spiny_counts %&gt;% 
+  group_by(mpa) %&gt;%
+  mutate(med = median(counts)) %&gt;%
+  ggplot(aes(x = counts, fill = mpa)) + # grouped by MPA status
+  geom_density(alpha = 0.6) +
+  geom_vline(aes(xintercept = med, color = mpa, linetype = &quot;Median&quot;), size = 1) +
+  labs(title = &quot;Density Distribution of Lobster Counts by MPA Status&quot;,
+       x = &quot;Lobster Counts&quot;,
+       y = &quot;Density&quot;) +
+  scale_fill_manual(values = c(&quot;#F26666&quot;, &quot;#66F2F2&quot;)) + # custom colors
+  scale_color_manual(values = c(&quot;#FF2626&quot;, &quot;#1FA5C4&quot;)) +
+  scale_linetype_manual(name = &quot;&quot;, values = c(&quot;Median&quot; = &quot;dashed&quot;))
+
+# Count distribution by year - jitter plot
+plot3 &lt;- spiny_counts %&gt;% 
+    #  We want to color by year since jitter plots can have some confusing overlap. In order to do this year must be a factor
+  ggplot(aes(x = counts, y = year, color = as.factor(year))) + 
+  geom_jitter(size = 2, alpha = 0.7) +
+  geom_vline(aes(xintercept = mean(counts), linetype = &quot;Mean&quot;), size = 1) +
+  labs(title = &quot;Distribution of Lobster Counts Across Years&quot;,
+       x = &quot;Lobster Counts&quot;,
+       y = &quot;Year&quot;) +
+  scale_color_viridis_d(guide = &quot;none&quot;) +  # Different color for each year
+  scale_y_continuous(breaks = unique(spiny_counts$year)) +  # Label every year
+  scale_linetype_manual(name = &quot;&quot;, values = c(&quot;Mean&quot; = &quot;dashed&quot;)) # Key for stat
+
+# Size distribution by MPA status - Violin plot
+plot4 &lt;- spiny_counts %&gt;% 
+  ggplot(aes(x = mpa, y = mean_size, fill = mpa)) + 
+  geom_violin(alpha = 0.6) +
+  stat_summary(fun = mean, aes(shape = &quot;Mean&quot;), geom = &quot;point&quot;, size = 3, color = &quot;black&quot;) +
+  labs(title = &quot;Distribution of Mean Lobster Size by MPA Status&quot;,
+       x = &quot;MPA Status&quot;,
+       y = &quot;Mean Size (mm)&quot;) +
+  scale_fill_manual(values = c(&quot;#F26666&quot;, &quot;#66F2F2&quot;), guide = &quot;none&quot;) +
+  scale_shape_manual(name = &quot;&quot;, values = c(&quot;Mean&quot; = 16))
+
+plot1
+
+plot2
+
+plot3
+
+plot4</code></pre>
 <p><strong>c.</strong> Compare means of the outcome by treatment group.
 Using the <code>tbl_summary()</code> function from the package <a href="https://www.danieldsjoberg.com/gtsummary/articles/tbl_summary.html"><code>gt_summary</code></a></p>
-<pre class="r"><code># USE: gt_summary::tbl_summary()</code></pre>
+<pre class="r"><code># USE: gt_summary::tbl_summary()
+
+spiny_counts %&gt;%
+  select(mpa, counts, mean_size, year) %&gt;%  # Select variables to summarize
+  tbl_summary(by = mpa)  # Group by mpa status</code></pre>
 <hr />
 </div>
 <div id="step-4-ols-regression--building-intuition" class="section level4">
@@ -555,20 +645,43 @@ package to print the OLS output</p>
 coefficients <em>in your own words</em>. Use full sentences and write
 your interpretation of the regression results to be as clear as possible
 to a non-academic audience.</p>
+<p>The intercept coefficient value indicates the number of lobsters that
+we can expect at a non-MPA site. Specifically, our model indicates that
+we should expect to count an average of about 9 lobsters per year at a
+non-MPA site. The intercept indicates the change in the number of
+lobsters that we expect to see when we apply our treatment, or in this
+case, when we search for lobsters in an MPA. In this case, we expect an
+MPA site to have four more lobsters than a non-MPA site.</p>
 <pre class="r"><code># NOTE: We will not evaluate/interpret model fit in this assignment (e.g., R-square)
 
-m1_ols &lt;- 
+m1_ols &lt;- lm(counts ~ mpa, data = spiny_counts)
 
 summ(m1_ols, model.fit = FALSE) </code></pre>
-<p><strong>c.</strong> Check the model assumptions using the
-<code>check_model</code> function from the <code>performance</code>
-package</p>
 <p><strong>d.</strong> Explain the results of the 4 diagnostic plots.
 Why are we getting this result?</p>
 <pre class="r"><code>check_model(m1_ols,  check = &quot;qq&quot; )</code></pre>
+<p>This first plot shows that our count distribution deviates from a
+normal distribution. This indicates that our counts are least consistent
+between sites near the lowest and highest bounds of our counts. We’re
+getting this result because our distribution is not necessarily normal -
+and some sites may have many more large or small lobsters than other
+sites.</p>
 <pre class="r"><code>check_model(m1_ols, check = &quot;normality&quot;)</code></pre>
+<p>The second plot shows the density of our residuals compared to that
+of a normal distribution. Our results have the highest density in the
+low-residual range, but generally follow the normal curve. This means we
+have low error. We’re probably seeing this because most of our plots
+have a similar number of lobsters (3-10).</p>
 <pre class="r"><code>check_model(m1_ols, check = &quot;homogeneity&quot;)</code></pre>
+<p>The third plot indicates that our errors are not consistent across
+our dataset. We’re seeing this likely because there is a lot of
+variation in counts in the middle of our count range (25-50).</p>
 <pre class="r"><code>check_model(m1_ols, check = &quot;pp_check&quot;)</code></pre>
+<p>This plot indicates how well our model imitates the patterns found in
+our actual data. These results show that our model is not able to
+replicate the peak of our counts that are around 3-10. This is probably
+because we have so much data in this range, a simple lm can’t account
+for the dispersion.</p>
 <hr />
 </div>
 <div id="step-5-fitting-glms" class="section level4">
@@ -578,18 +691,81 @@ Why are we getting this result?</p>
 <p><strong>b.</strong> Interpret the predictor coefficient in your own
 words. Use full sentences and write your interpretation of the results
 to be as clear as possible to a non-academic audience.</p>
+<p>In order to interpret these coefficients, we need to make some
+mathematical modifications. Because we used a logarithmic model, our
+outputs are still in logarithmic terms or “link space”. Basically, the
+results are in terms that the computer understands, but are difficult
+for humans to understand. In order to get them in to numeric terms
+(number of lobsters) we have to use the inverse function. In this case,
+we will raise e^value of our coefficients. When we do this, our
+intercept value becomes ~ 3, which means that in a non-MPA site we would
+expect to find 3 lobsters. Our treatment coefficient becomes ~1.28,
+which means that in an MPA site we would expect to find 1.28 times more
+lobsters on average than a non-treatment site - or about one more
+lobster (if we’re assuming our non-MPA has 3 lobsters).</p>
 <p><strong>c.</strong> Explain the statistical concept of dispersion and
 overdispersion in the context of this model.</p>
+<p>Dispersion describe the distribution of our data compared to a
+“normal” distribution or a bell curve, which describes a distribution
+that has the most measurements near the mean, the least measurements at
+the minimum and maximum count. Over-dispersion refers to data that
+deviates significantly from a “normal” distribution. In our case,
+normally distributed data would mean that most of our sites have around
+3 lobsters, very few sites have 0-1 lobsters, and very few sites have
+25-50 lobsters.</p>
+<p>Over-dispersed data would have much more spread than this—we’d see
+more sites with very low counts (1-3 lobsters) and more sites with very
+high counts (50-100 lobsters) than the Poisson model predicts. This
+extra variability is a problem because it can make our statistical tests
+unreliable. Overdispersion might happen if lobsters cluster together in
+certain spots due to rocky habitat or food availability, meaning some
+transects catch huge numbers while others catch almost none. Things like
+like storms, temperature changes, or local fishing could also cause
+lobster populations to vary much more dramatically from site to site
+than we’d expect from random chance.</p>
 <p><strong>d.</strong> Compare results with previous model, explain
 change in the significance of the treatment effect</p>
+<p>The poisson model predicted a slightly lower effect in MPA sites. Our
+coefficient value dropped from about 5 to 1.28 between models. This is
+because the poisson model gives us a multiplicative (percentage
+increase) value for the treatment coefficient, which means if we had a
+site that had 3 lobsters, we would expect that if this site was an MPA
+it would instead have 1.28x the number of lobsters, or about 4 lobsters.
+The effect of the MPA is slightly lower for a population of 3 lobsters
+in our Poisson model than our OLS model - but very comparable.</p>
 <pre class="r"><code>#HINT1: Incidence Ratio Rate (IRR): Exponentiation of beta returns coefficient which is interpreted as the &#39;percent change&#39; for a one unit increase in the predictor 
 
 #HINT2: For the second glm() argument `family` use the following specification option `family = poisson(link = &quot;log&quot;)`
 
-m2_pois &lt;- </code></pre>
-<p><strong>e.</strong> Check the model assumptions. Explain results.</p>
+m2_pois &lt;- glm(counts ~ mpa, # mpa status is our predictor
+                     family = poisson(link = &quot;log&quot;), # poisson regression, which uses log
+                     data = spiny_counts)
+
+# View the results
+summary(m2_pois)</code></pre>
+<p><strong>e.</strong> Check the model assumptions. Explain results. The
+PP check shows that our model is not very accurate at predicting count,
+especially in the 5-15 range of lobsters. The Misspecified dispersion
+and zero-inflation figure indicates that our data is potentially
+over-dispersed, and our model is not accounting for it. The Homogeneity
+of Variance figure shows that our variation is relatively homogenous,
+meaning that variation or grouping of lobsters is similar between
+treatment and non-treatment groups. The influential observations graph
+shows that our outlier observations of very low or very high counts of
+lobsters have significant influence on the accuracy of our model. The
+Distribution of Quantile residuals figure indicates that our residuals
+have high variance across our entire distribution. These results
+indicate that the model is best at predicting count in the 0.7-0.85
+quantile range, and less effective to varying degrees at points in our
+distribution.</p>
 <p><strong>f.</strong> Conduct tests for over-dispersion &amp;
 zero-inflation. Explain results.</p>
+<p>Our results show that our dispersion ratio is 67. If our data was
+consistent with the Poisson regression, this value would be 1. This
+indicates that our data has 67 times the variation that the poisson
+model predicts - which means it is highly overdispersed. Our
+zero-inflation results show that we have 27 0-counts in our data, and
+poisson predicted 0. This means that our Poisson model is failing.</p>
 <pre class="r"><code>check_model(m2_pois)</code></pre>
 <pre class="r"><code>check_overdispersion(m2_pois)</code></pre>
 <pre class="r"><code>check_zeroinflation(m2_pois)</code></pre>
@@ -598,12 +774,19 @@ glm.nb() from the package <code>MASS</code> and check model
 diagnostics</p>
 <p><strong>h.</strong> In 1-2 sentences explain rationale for fitting
 this GLM model.</p>
+<p>Negative binomial model incorporates a dispersion parameter, which
+makes it better for modeling over-dispersed data.</p>
 <p><strong>i.</strong> Interpret the treatment estimate result in your
 own words. Compare with results from the previous model.</p>
+<p>The treatment estimate indicates a 1.24% increase in lobsters at MPA
+sites. It is slightly lower than the estimate produced by our poisson
+model.</p>
 <pre class="r"><code>library(MASS) ## NOTE: The `select()` function is masked. Use: `dplyr::select()` ##</code></pre>
 <pre class="r"><code># NOTE: The `glm.nb()` function does not require a `family` argument
+m3_nb &lt;- glm.nb(counts ~ mpa, data = spiny_counts)
 
-m3_nb &lt;- </code></pre>
+# View results
+summary(m3_nb)</code></pre>
 <pre class="r"><code>check_overdispersion(m3_nb)</code></pre>
 <pre class="r"><code>check_zeroinflation(m3_nb)</code></pre>
 <pre class="r"><code>check_predictions(m3_nb)</code></pre>
@@ -618,8 +801,19 @@ you fit side-by-side.</p>
 <p><strong>c.</strong> Write a short paragraph comparing the results. Is
 the treatment effect <code>robust</code> or stable across the model
 specifications.</p>
-<pre class="r"><code>export_summs(# ADD MODELS
-             model.names = c(&quot;OLS&quot;,&quot;Poisson&quot;, &quot;NB&quot;),
+<p>The treatment effect is stable across Poisson and NB models, and
+significantly different for our OLS model. The statistical significance
+is highly variable. The OLS model estimates that MPA sites have 5.36
+more lobsters on average, but this effect is not statistically
+significant indicated by the p value being larger than 0.05. The Poisson
+model shows a highly significant effect (coefficient = 0.21, p &lt;
+0.001), translating to about 23% more lobsters in MPAs. The NB model
+produces an identical coefficient estimate to the Poisson model but with
+a much larger standard error (0.17 vs 0.03). The loss of significance in
+the NB model is because NB accounts for the overdispersion in the data,
+which the Poisson model ignores.</p>
+<pre class="r"><code>export_summs(m1_ols, m2_pois, m3_nb,  # Your three models
+             model.names = c(&quot;OLS&quot;, &quot;Poisson&quot;, &quot;NB&quot;),
              statistics = &quot;none&quot;)</code></pre>
 <hr />
 </div>
@@ -640,8 +834,17 @@ coefficient provides a comparison or the difference in means for a
 specific sub-group in the data. Informally, describe the what the model
 has estimated at a conceptual level (NOTE: you do not have to interpret
 coefficients individually)</p>
+<p>This model shows us how many lobsters were at control sites in 2012,
+and how that changed each year. It also shows how the effect of our
+treatment has changed over the years. Basically, it’s showing us if the
+‘MPA effect’ is consistent over time. Our results shows that the MPA has
+generally become more effective as time has gone on, with some decrease
+in efficacy in 2016 and 2017.</p>
 <p><strong>d.</strong> Explain why the main effect for treatment is
 negative? *Does this result make sense?</p>
+<p>This means that in 2012 MPA sites had less lobsters than non-MPA.
+This makes sense because the MPAs were established in 2012, and they
+were established at areas that had higher fishing pressure.</p>
 <pre class="r"><code>ff_counts &lt;- spiny_counts %&gt;% 
     mutate(year=as_factor(year))
     
@@ -657,7 +860,11 @@ summ(m5_fixedeffs, model.fit = FALSE)</code></pre>
 <code>interact_plot()</code> function from package
 <code>interactions</code> to plot mean predictions by year and treatment
 status.</p>
-<p><strong>f.</strong> Re-evaluate your responses (c) and (b) above.</p>
+<p><strong>f.</strong> Re-evaluate your responses (c) and (b) above.
+This figure shows us that in 2014, 2015 and 2018 MPA sites had higher
+counts than non-mpa sites. This is similar to what we observed from the
+table. We also see the low count of lobsters in MPA sites compared to
+non-MPA in 2012, that makes sense for the explanation above</p>
 <pre class="r"><code>interact_plot(m5_fixedeffs, pred = year, modx = treat,
               outcome.scale = &quot;link&quot;) # NOTE: y-axis on log-scale
 
@@ -673,7 +880,17 @@ variable</p>
 <pre class="r"><code># Hint 1: Group counts by `year` and `mpa` and calculate the `mean_count`
 # Hint 2: Convert variable `year` to a factor
 
-plot_counts &lt;- 
+plot_counts &lt;-  ggplot(spiny_counts, aes(x = year, y = counts, color = mpa, group = mpa)) +
+  stat_summary(fun = mean, geom = &quot;point&quot;, size = 3) +  # Mean points
+  stat_summary(fun = mean, geom = &quot;line&quot;, linewidth = 1) +  # Connect means with lines
+  labs(
+    x = &quot;Year&quot;,
+    y = &quot;Counts&quot;,
+    color = &quot;MPA Status&quot;,
+    title = &quot;Lobster Counts Over Time by MPA Status&quot;
+  )
+
+plot_counts
 
 # plot_counts %&gt;% ggplot() ...</code></pre>
 <hr />
@@ -681,19 +898,62 @@ plot_counts &lt;-
 <div id="step-8-reconsider-causal-identification-assumptions" class="section level4">
 <h4>Step 8: Reconsider causal identification assumptions</h4>
 <ol style="list-style-type: lower-alpha">
-<li><p>Discuss whether you think <code>spillover effects</code> are
-likely in this research context (see Glossary of terms; <a href="https://docs.google.com/document/d/1RIudsVcYhWGpqC-Uftk9UTz3PIq6stVyEpT44EPNgpE/edit?usp=sharing" class="uri">https://docs.google.com/document/d/1RIudsVcYhWGpqC-Uftk9UTz3PIq6stVyEpT44EPNgpE/edit?usp=sharing</a>)</p></li>
-<li><p>Explain why spillover is an issue for the identification of
-causal effects</p></li>
-<li><p>How does spillover relate to impact in this research
-setting?</p></li>
+<li>Discuss whether you think <code>spillover effects</code> are likely
+in this research context (see Glossary of terms; <a href="https://docs.google.com/document/d/1RIudsVcYhWGpqC-Uftk9UTz3PIq6stVyEpT44EPNgpE/edit?usp=sharing" class="uri">https://docs.google.com/document/d/1RIudsVcYhWGpqC-Uftk9UTz3PIq6stVyEpT44EPNgpE/edit?usp=sharing</a>)</li>
+</ol>
+<p>Spillover effects are likely in this research. Natural processes like
+storms, currents and shifting temperatures can cause individual lobsters
+or groups of lobsters to migrate between test sites. This means that
+lobsters counted at one site could be counted at another site within the
+same year. This also means that lobsters than benefited (survived) from
+living in an MPA site could find themselves counted in a non-MPA
+site.</p>
+<ol start="2" style="list-style-type: lower-alpha">
+<li>Explain why spillover is an issue for the identification of causal
+effects</li>
+</ol>
+<p>Spillover is in violation of the assumption that control groups are
+not under the influence of our treatment. If individuals from our
+treatment group are wandering into the bin where all of the treated
+individuals are being counted, our data will be inaccurate.</p>
+<ol start="3" style="list-style-type: lower-alpha">
+<li>How does spillover relate to impact in this research setting?</li>
+</ol>
+<p>As explained above, lobsters that lived their entire lives in an MPA
+(and thus potentially had a higher chance of survival) wander into a
+non-MPA site right before they’re counted, our data assumes they spent
+their entire lives in a non-MPA site, which is not accurate. This could
+work the other direction as well.</p>
+<ol start="4" style="list-style-type: lower-alpha">
 <li><p>Discuss the following causal inference assumptions in the context
 of the MPA treatment effect estimator. Evaluate if each of the
 assumption are reasonable:</p>
 <ol style="list-style-type: decimal">
 <li>SUTVA: Stable Unit Treatment Value assumption</li>
+</ol>
+<p>SUTVA assumes that there is no spillover, and that our non-MPA groups
+are not experiencing any of the effects of the MPA zone. This is not
+reasonable for this situation, because the existence of MPA sites means
+that more fishermen will have to move to non-MPA sites. Meaning lobsters
+that may not have been caught in non-MPA sites may now have an increased
+chance of being caught. Since all of the lobsters are living in the same
+ocean together, we cannot make this assumption. More controls need to be
+established, which might not be possible for this specific
+experiment.</p>
+<ol start="2" style="list-style-type: decimal">
 <li>Excludability assumption</li>
-</ol></li>
+</ol>
+<p>Excludability assumption assumes that an observed outcome is due
+solely to the treatment. This assumption is not reasonable for this
+experiment, because there are countless things that could also be
+causing the effect that we see. Theoretically (but ridiculously) the
+price of lobster, presence of pirates, or the regional release of a
+Disney animated movie about lobsters could all produce effects
+comparable to what we observed. We cannot assume that our observed
+effect on lobster count is solely due to the presence of MPAs, but if
+similar experiments with varying controls give similar results for many
+years, this study and others can serve as evidence to the efficacy of
+MPAs.</p></li>
 </ol>
 <hr />
 </div>
