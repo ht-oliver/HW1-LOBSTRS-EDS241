@@ -188,7 +188,8 @@ ggplot(aes(x = counts)) + # display counts
          x = "Lobster Counts",
          y = "Frequency") +
     scale_linetype_manual(name = "", values = c("Mean" = "dashed")) + # Add mean line
-    facet_wrap(~site) # One plot for each site
+    facet_wrap(~site)+ # One plot for each site
+    theme_minimal()
 
 # Count distribution by MPA status - density plot
 plot2 <- spiny_counts %>% 
