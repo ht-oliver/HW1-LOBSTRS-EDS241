@@ -1,5 +1,5 @@
 ---
-title: "Assignment 1"
+title: "Assignment 1 - Resubmission"
 subtitle: "California Spiny Lobster (*Panulirus Interruptus*): Assessing the Impact of Marine Protected Areas (MPAs) at 5 Reef Sites in Santa Barbara County" 
 author: "EDS 241 / ESM 244 (**Due: 1/17**)"
 date: "1/8/26"
@@ -256,7 +256,7 @@ spiny_counts %>%
 
 **b.** Interpret the intercept & predictor coefficients *in your own words*. Use full sentences and write your interpretation of the regression results to be as clear as possible to a non-academic audience.
 
-The intercept coefficient value indicates the number of lobsters that we can expect at a non-MPA site. Specifically, our model indicates that we should expect to count an average of about 9 lobsters per year at a non-MPA site. The intercept indicates the change in the number of lobsters that we expect to see when we apply our treatment, or in this case, when we search for lobsters in an MPA. In this case, we expect an MPA site to have four more lobsters than a non-MPA site.
+The intercept coefficient value indicates the number of lobsters that we can expect at a non-MPA site. Specifically, our model indicates that we should expect to count an average of about 22.73 lobsters per year at a non-MPA site. The intercept indicates the change in the number of lobsters that we expect to see when we apply our treatment, or in this case, when we search for lobsters in an MPA. In this case, we expect an MPA site to about five more lobsters than a non-MPA site.
 
 ```{r}
 # NOTE: We will not evaluate/interpret model fit in this assignment (e.g., R-square)
@@ -300,7 +300,7 @@ This plot indicates how well our model imitates the patterns found in our actual
 
 **b.** Interpret the predictor coefficient in your own words. Use full sentences and write your interpretation of the results to be as clear as possible to a non-academic audience.
 
-In order to interpret these coefficients, we need to make some mathematical modifications. Because we used a logarithmic model, our outputs are still in logarithmic terms or "link space". Basically, the results are in terms that the computer understands, but are difficult for humans to understand. In order to get them in to numeric terms (number of lobsters) we have to use the inverse function. In this case, we will raise e^value of our coefficients. When we do this, our intercept value becomes ~ 3, which means that in a non-MPA site we would expect to find 3 lobsters. Our treatment coefficient becomes ~1.28, which means that in an MPA site we would expect to find 1.28 times more lobsters on average than a non-treatment site - or about one more lobster (if we're assuming our non-MPA has 3 lobsters).
+In order to interpret these coefficients, we need to make some mathematical modifications. Because we used a logarithmic model, our outputs are still in logarithmic terms or "link space". Basically, the results are in terms that the computer understands, but are difficult for humans to understand. In order to get them in to numeric terms (number of lobsters) we have to use the inverse function. In this case, we will raise e^value of our coefficients. When we do this, our intercept value becomes ~ 23, which means that in a non-MPA site we would expect to find 23 lobsters. Our treatment coefficient becomes ~24%, which means that in an MPA site we would expect to find 1.24 times more lobsters on average than a non-treatment site - or about five more lobsters (if we're assuming our non-MPA has 3 lobsters).
 
 **c.** Explain the statistical concept of dispersion and overdispersion in the context of this model. 
 
@@ -354,7 +354,7 @@ Negative binomial model incorporates a dispersion parameter, which makes it bett
 
 **i.** Interpret the treatment estimate result in your own words. Compare with results from the previous model.
 
-The treatment estimate indicates a 1.24% increase in lobsters at MPA sites. It is slightly lower than the estimate produced by our poisson model.
+The treatment estimate indicates a 24% increase in lobsters at MPA sites. It is slightly lower than the estimate of lobster increase at MPA sites produced by our poisson model. This predicts that just over three more lobsters in MPAs than non-MPAs with 23 lobsters. This is slightly more than our OLS model predicted, which was a 21% increase in lobsters - from 23 (nonMPA) to 28 (MPA) 
 
 ```{r}
 library(MASS) ## NOTE: The `select()` function is masked. Use: `dplyr::select()` ##
@@ -397,7 +397,7 @@ check_model(m3_nb)
 
 **c.** Write a short paragraph comparing the results. Is the treatment effect `robust` or stable across the model specifications. 
 
-The treatment effect is stable across Poisson and NB models, and significantly different for our OLS model. The statistical significance is highly variable. The OLS model estimates that MPA sites have 5.36 more lobsters on average, but this effect is not statistically significant indicated by the p value being larger than 0.05. The Poisson model shows a highly significant effect (coefficient = 0.21, p < 0.001), translating to about 23% more lobsters in MPAs. The NB model produces an identical coefficient estimate to the Poisson model but with a much larger standard error (0.17 vs 0.03). The loss of significance in the NB model is because NB accounts for the overdispersion in the data, which the Poisson model ignores.
+The treatment effect is stable across Poisson and NB models, and significantly different for our OLS model. The statistical significance is highly variable. The OLS model estimates that MPA sites have 5.36 more lobsters on average, but this effect is not statistically significant indicated by the p value being larger than 0.05. The OLS model likely has more error than the other models because of the distribution of our lobster data being overdispersed and highly variable. OLS assumes that residuals are normally distributed, which is not the case for this data. The Poisson model shows a highly significant effect (coefficient = 0.21, p < 0.001), translating to about 23% more lobsters in MPAs. The NB model produces an identical coefficient estimate to the Poisson model but with a much larger standard error (0.17 vs 0.03). The loss of significance in the NB model is because NB accounts for the overdispersion in the data, which the Poisson model ignores.
 
 ```{r}
 
@@ -502,12 +502,17 @@ d. Discuss the following causal inference assumptions in the context of the MPA 
     
     1) SUTVA: Stable Unit Treatment Value assumption 
     
-    SUTVA assumes that there is no spillover, and that our non-MPA groups are not experiencing any of the effects of the MPA zone. This is not reasonable for this situation, because the existence of MPA sites means that more fishermen will have to move to non-MPA sites. Meaning lobsters that may not have been caught in non-MPA sites may now have an increased chance of being caught. Since all of the lobsters are living in the same ocean together, we cannot make this assumption. More controls need to be established, which might not be possible for this specific experiment.
+    SUTVA assumes that there is no spillover, and that our non-MPA groups are not experiencing any of the effects of the MPA zone. This is not reasonable for this situation, because the existence of MPA sites means that more fishermen will have to move to non-MPA sites. Meaning lobsters that may not have been caught in non-MPA sites may now have an increased chance of being caught. Since all of the lobsters are living in the same ocean together, we cannot make this assumption. More controls need to be established, which might not be possible for this specific experiment. SUTVA also assumes that all units in the experiment are recieving the same treatment, and that there is only one version of the treatment. This assumption is not reasonable, because every MPA is going to unique. Each MPA will have slightly different geography/habitat/neighboring fishing pressure etc..
     
-    2) Excludability assumption
+    2) Excludability Assumption
     
-    Excludability assumption assumes that an observed outcome is due solely to the treatment. This assumption is not reasonable for this experiment, because there are countless things that could also be causing the effect that we see. Theoretically (but ridiculously) the price of lobster, presence of pirates, or the regional release of a Disney animated movie about lobsters could all produce effects comparable to what we observed. We cannot assume that our observed effect on lobster count is solely due to the presence of MPAs, but if similar experiments with varying controls give similar results for many years, this study and others can serve as evidence to the efficacy of MPAs.
-
+    Excludability assumption requires that the treatment is only affecting the outcome through the intended causal pathway. In this context, that would mean that lobster increases are only due to the absence of fisherman encouraged by the MPA rules. This assumption is more reasonable, but we cannot assume that the establishment of MPAs didn't also change the habits of fisherman - who now likely fish the edge of the MPA. This habitual change is not the intended causal pathway, but would very likely have an effect on lobster populations.
+    
+    2.1) Exogeneity assumption
+    
+    Exogeneity assumption assumes that the treatment assignment is independent of other factors affecting the outcome. This assumption is not reasonable for this experiment, because there are countless things that could also be causing the effect that we see. Theoretically (but ridiculously) the price of lobster, presence of pirates, or the regional release of a Disney animated movie about lobsters could all produce effects comparable to what we observed. Without accounting for more of these things, we cannot assume that our observed effect on lobster count is solely due to the presence of MPAs, but if similar experiments with varying controls give similar results for many years, this study and others can serve as evidence to the efficacy of MPAs.
+    
+    
 ------------------------------------------------------------------------
 
 # EXTRA CREDIT
